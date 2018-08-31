@@ -1,20 +1,31 @@
 <template>
 <div class="vue-upload-picker">
-  <button class="up-Button up-Button--compound" :disabled="isDisabled" @click="transfer()">
+  <div class="up-Button up-Button--compound" :disabled="isDisabled" @click="transfer">
     <span class="up-Button-label">{{dataTitle}}</span>
     <span class="up-Button-description">{{dataDescription}}</span>
 
     <label class="up-img" v-for="files in filesData">
       <img :src="files[defaultLabel]">
     </label>
-  </button>
+  </div>
 
   <input type="hidden" :value="value">
-  <input type="file" @change="upload(dataName)" >
+  <input type="file" @change="upload" ref="file">
 </div>
 </template>
 
 <script>
+const lang = {
+  'en': {
+    'Invalid file extension': 'Invalid file extension!',
+    'Exceeded size limit': 'Exceeded size limit!',
+  },
+  'zh': {
+    'Invalid file extension': '格式不正确!',
+    'Exceeded size limit': '大小超过限制',
+  },
+};
+
 export default {
   props: {
     value: {
@@ -22,6 +33,10 @@ export default {
       required: false
     },
     dataTitle: {
+      type: String,
+      required: true
+    },
+    dataUri: {
       type: String,
       required: true
     },
@@ -33,11 +48,24 @@ export default {
       type: String,
       required: false
     },
+    dataExtension: {
+      type: Array,
+      required: false
+    },
+    dataLang: {
+      type: String,
+      required: false
+    },
+    dataMaxSize: { // kb
+      type: null,
+      required: false
+    },
     disabled: null
   },
   data() {
     return {
       defaultLabel: 'path',
+      defaultLang: 'zh',
     };
   },
   computed: {
@@ -65,7 +93,68 @@ export default {
       return files;
     }
   },
+  methods: {
+    transfer(event) {
+      this.$refs.file.click();
+    },
+    t(key) {
+      return lang[this.defaultLang][key];
+    },
+    clearFile(fileObj) {
+      fileObj.value = ''
+    },
+    upload(event) {
+      var file = event.target.files[0];
+      if (!file) return false;
+      
+      let ext   = file.name.toLowerCase().substr(file.name.lastIndexOf(".") + 1);
+      var _this = this;
+
+      // Check extension.
+      if (_this.dataExtension) {
+        if (_this.dataExtension.indexOf(ext) == -1) {
+          alert(_this.t('Invalid file extension'));
+          _this.clearFile(event.target);
+          return false;
+        }
+      }
+
+      // Check file size
+      if (this.dataMaxSize) {
+        if (file.size > this.dataMaxSize * 1024) {
+          alert(_this.t('Exceeded size limit'));
+          _this.clearFile(event.target);
+          return false;
+        }
+      }
+
+      // Upload
+      var data = new FormData();
+      data.append('file', file);
+      
+      var url = "http://gurudin.test/vue2-upload-picker/test.php";
+      var xhr = new XMLHttpRequest();
+      xhr.open("post", url, true);
+      xhr.onload = uploadComplete; //请求完成
+      xhr.onerror =  uploadFailed; //请求失败
+      // xhr.upload.onprogress = progressFunction;
+      xhr.send(data);
+
+      function uploadComplete(evt) {
+        console.log(evt.target);
+        
+        if (evt.target.status == 200) {
+
+        }
+      }
+      
+      function uploadFailed(evt) {
+        console.log(evt);
+      }
+    }
+  },
   created() {
+    this.defaultLang = this.dataLang ? this.dataLang : this.defaultLang;
     // console.log(typeof this.value);
   }
 };
@@ -139,4 +228,3 @@ export default {
   top: 3px;
 }
 </style>
-
